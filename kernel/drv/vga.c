@@ -12,14 +12,14 @@
 #include <drv/vga.h>
 #include <string.h>
 #include <system.h>
+#include <stdlib.h>
 
 uint16_t index(uint8_t, uint8_t);
 void update_cursor();
 void scroll();
 
 uint16_t *VGA = (uint16_t *)0xB8000;
-const size_t VGA_WIDTH = 80;
-const size_t VGA_HEIGHT = 25;
+uint16_t *back_buffer;
 
 uint8_t colour = 0;
 
@@ -28,19 +28,25 @@ uint8_t cursor_y;
 
 void vga_init()
 {
+	back_buffer = malloc(VGA_WIDTH * VGA_HEIGHT * 16);
 	cursor_x = 0;
 	cursor_y = 0;
 	colour = (VGA_BLACK << 8) | VGA_LIGHT_GREY;
 	vga_clear();
 }
 
-void vga_clear()
+void vga_switch_buffers()
+{
+	memcpy(VGA, back_buffer, VGA_LENGTH);
+}
+
+void vga_clear_internal()
 {
 	uint16_t blank = 0x20 | (colour << 8);
 	
 	for(size_t i = 0; i < VGA_HEIGHT; i++)
 	{
-		memsetw((void *)(VGA + i * VGA_WIDTH), blank, VGA_WIDTH);
+		memsetw((void *)(back_buffer + i * VGA_WIDTH), blank, VGA_WIDTH);
 	}
 	
 	cursor_x = 0;
@@ -49,9 +55,15 @@ void vga_clear()
 	update_cursor();
 }
 
+void vga_clear()
+{
+	vga_clear_internal();
+	vga_switch_buffers();
+}
+
 void update_cursor()
 {
-	unsigned tmp = index(cursor_x, cursor_y);
+	uint16_t tmp = index(cursor_x, cursor_y);
 	
 	outportb(0x3D4, 14);
 	outportb(0x3D5, tmp >> 8);
@@ -59,11 +71,16 @@ void update_cursor()
 	outportb(0x3D5, tmp);
 }
 
-void vga_putchar(uint8_t c)
+void vga_putchar_internal(uint8_t c)
 {
 	if(c == 0x08)
 	{
 		if(cursor_x != 0) cursor_x--;
+		else if(cursor_y != 0)
+		{
+			cursor_y--;
+			//cursor_x = 24;
+		}
 	}
 	else if(c == 0x09)
 	{
@@ -80,7 +97,7 @@ void vga_putchar(uint8_t c)
 	}
 	else if(c >= ' ')
 	{
-		uint16_t *ptr = VGA + index(cursor_x, cursor_y);
+		uint16_t *ptr = back_buffer + index(cursor_x, cursor_y);
 		*ptr = c | (colour << 8);
 		cursor_x++;
 	}
@@ -95,13 +112,33 @@ void vga_putchar(uint8_t c)
 	update_cursor();
 }
 
-void vga_putstring(const char *str)
+void vga_putchar(uint8_t c)
+{
+	vga_putchar_internal(c);
+	vga_switch_buffers();
+}
+
+void vga_putstring_internal(const char *str)
 {
 	size_t len = strlen(str);
+	
 	for(size_t i = 0; i < len; i++)
 	{
-		vga_putchar(str[i]);
+		vga_putchar_internal(str[i]);
 	}
+}
+
+void vga_putstring(const char *str)
+{
+	vga_putstring_internal(str);
+	vga_switch_buffers();
+}
+
+void vga_flush(const char *str)
+{
+	vga_clear_internal();
+	vga_putstring_internal(str);
+	vga_switch_buffers();
 }
 
 void vga_set_colour(uint8_t fg, uint8_t bg)
@@ -117,9 +154,9 @@ void scroll()
 	{
 		uint16_t tmp = cursor_y - 25 + 1;
 		
-		memcpy(VGA, VGA + tmp * 80, (25 - tmp) * 80 * 2);
+		memcpy(back_buffer, back_buffer + tmp * 80, (25 - tmp) * 80 * 2);
 		
-		memsetw(VGA + (25 - tmp) * 80, blank, 80);
+		memsetw(back_buffer + (25 - tmp) * 80, blank, 80);
 		
 		cursor_y = 25 - 1;
 	}

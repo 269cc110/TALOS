@@ -7,48 +7,53 @@
  *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drv/vga.h>
-#include <drv/kb.h>
-#include <internal/kernel.h>
-#include <internal/dt.h>
-#include <internal/timer.h>
 #include <internal/shell.h>
+#include <drv/vga.h>
+#include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
-void kernel_init()
+char text_buffer[VGA_LENGTH + 1];
+
+void shell_init()
 {
-	gdt_init();
-	idt_init();
-	isr_init();
-	irq_init();
-	asm volatile("sti");
-	timer_init();
-	timer_phase(100);
-	msys_init((void *)0x2000000, 0x2000000);
-	vga_init();
-	kb_init();
-	shell_init();
-	shell_putstring("TALOS 0.1 loaded\n> ");
-	asm volatile("hlt");
+	text_buffer[VGA_LENGTH] = '\0';
 }
 
-void kfatal(const char *str)
+void shell_putchar_internal(char c)
 {
-	vga_set_colour(VGA_WHITE, VGA_BLUE);
-	vga_clear();
-	vga_putstring("FATAL ERROR\n");
-	vga_putstring(str);
-	vga_putstring(" EXCEPTION\nSYSTEM HALTED\n");
-	asm volatile("cli//hlt");
+	size_t current_length = strlen(text_buffer);
+	
+	if(c == '\b')
+	{
+		text_buffer[current_length - 1] = '\0';
+	}
+	else if(strlen(text_buffer) < 2000)
+	{
+		text_buffer[current_length] = c;
+		text_buffer[current_length + 1] = '\0';
+	}
 }
 
-/*void kfatal_dumpreg(const char *str, registers_t *reg)
+void shell_putchar(char c)
 {
-	vga_set_colour(VGA_LIGHT_GREY, VGA_BLUE);
-	vga_clear();
-	vga_putstring("FATAL ERROR\n");
-	vga_putstring(str);
-	vga_putstring(" EXCEPTION\nSYSTEM HALTED\n\nINTERRUPT DETAILS:\n\t");
-	asm volatile("hlt");
-}*/
+	shell_putchar_internal(c);
+	vga_flush(text_buffer);
+}
+
+void shell_putstring_internal(const char *str)
+{
+	size_t len = strlen(str);
+	
+	for(size_t i = 0; i < len; i++)
+	{
+		shell_putchar_internal(str[i]);
+	}
+}
+
+void shell_putstring(const char *str)
+{
+	shell_putstring_internal(str);
+	vga_flush(text_buffer);
+}
 

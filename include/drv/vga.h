@@ -27,13 +27,22 @@
 #define VGA_LIGHT_BROWN 14
 #define VGA_WHITE 15
 
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25
+#define VGA_LENGTH 2000
+
 #include <stdint.h>
 
 void vga_init();
 void vga_clear();
 void vga_putchar(uint8_t);
 void vga_putstring(const char *);
+void vga_flush(const char *);
 void vga_set_colour(uint8_t, uint8_t);
+
+#ifdef __is_talos
+void vga_switch_buffers();
+#endif
 
 #endif
 

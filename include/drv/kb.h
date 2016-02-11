@@ -7,48 +7,12 @@
  *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drv/vga.h>
-#include <drv/kb.h>
-#include <internal/kernel.h>
-#include <internal/dt.h>
-#include <internal/timer.h>
-#include <internal/shell.h>
-#include <stdlib.h>
+#ifndef __KB_H_
+#define __KB_H_
 
-void kernel_init()
-{
-	gdt_init();
-	idt_init();
-	isr_init();
-	irq_init();
-	asm volatile("sti");
-	timer_init();
-	timer_phase(100);
-	msys_init((void *)0x2000000, 0x2000000);
-	vga_init();
-	kb_init();
-	shell_init();
-	shell_putstring("TALOS 0.1 loaded\n> ");
-	asm volatile("hlt");
-}
+#ifdef __is_talos
+void kb_init();
+#endif 
 
-void kfatal(const char *str)
-{
-	vga_set_colour(VGA_WHITE, VGA_BLUE);
-	vga_clear();
-	vga_putstring("FATAL ERROR\n");
-	vga_putstring(str);
-	vga_putstring(" EXCEPTION\nSYSTEM HALTED\n");
-	asm volatile("cli//hlt");
-}
-
-/*void kfatal_dumpreg(const char *str, registers_t *reg)
-{
-	vga_set_colour(VGA_LIGHT_GREY, VGA_BLUE);
-	vga_clear();
-	vga_putstring("FATAL ERROR\n");
-	vga_putstring(str);
-	vga_putstring(" EXCEPTION\nSYSTEM HALTED\n\nINTERRUPT DETAILS:\n\t");
-	asm volatile("hlt");
-}*/
+#endif
 

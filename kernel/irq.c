@@ -27,11 +27,7 @@ extern void __irq13();
 extern void __irq14();
 extern void __irq15();
 
-void *irq_handlers[16] =
-{
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0
-};
+void *irq_handlers[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void irq_install_handler(uint32_t irq, void (*handler)(registers_t *))
 {
